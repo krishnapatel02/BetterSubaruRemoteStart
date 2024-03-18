@@ -20,8 +20,7 @@ A reverse engineered implementation of the MySubaru App that allows for remote s
 ![image](https://github.com/krishnapatel02/BetterSubaruRemoteStart/assets/30353953/388db374-e171-4bb9-9c66-24786677564f)
 
 DISCLAIMERS:
-1. This app has only been tested on my car, models older than 2023 might have limitations.
-   a. This will not work on Solterras as that car is based off a Toyota and has a different implementation.
+1. This app has only been tested on my car, models older than 2023 might have limitations. This will not work on Solterras as that car is based off a Toyota and has a different implementation.
 2. I am not responsible for any issues this may cause with your vehicle/ Subaru account, you assume all risks.
 3. For the watch start feature to work, your phone must be in range and accessible via Bluetooth. Additionally, both devices must have their relative apps installed.
 4. Please enable text notifications and push notifications on the original app. My implementation simply sends the commands and does not look for a response on if a Lock/Unlock/Engine Start was successful.
