@@ -1,6 +1,9 @@
 # BetterSubaruRemoteStart
 A reverse engineered implementation of the MySubaru App that allows for remote start from a WearOS watch. The WearOS app communicates with a companion app on your Android phone to send the request.
 
+#To build app:
+If you would like to build the app with the code yourself. Please download Android Studio (https://developer.android.com/studio?utm_source=android-studio) and open the project. You can build an APK or an easier way is to enable USB debugging on both your phone and watch, and run the phone and watch app through Android Studio to trigger an install.
+
 # To obtain DeviceID and Vehicle Key to setup login: 
 1. Go to https://www.mysubaru.com/login.html on a desktop browser with access to debug tools, and log in with your username and password.
 2. When prompted for your 2-step verification, make sure you click "Remember this device"
