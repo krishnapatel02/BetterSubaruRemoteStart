@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Subaru Remote Start</string>
+    <string name="setup_info">Please enter the following credentials to allow the app to function. All information will be stored locally on
+    your device except when executing a command. If commands are not working after setting the app up, double check your login.</string>
+    <string name="wear_setup_info">For this feature to work, install the WearOS app. The remote start will not work unless the phone is in range. The request is not made with the watch\'s LTE connection.</string>
+    <string name = "username_placeholder">Username: (ex: email@gmail.com)</string>
+    <string name = "password_placeholder">Password</string>
+    <string name = "vehicle_key_placeholder">Last Selected Vehicle Key: (ex: 1234567)</string>
+    <string name = "deviceid_placeholder">Device ID: (ex:1234567891012)</string>
+    <string name = "pin_placeholder">PIN: (ex: 1023)</string>
+    <string name = "main_screen_title">Main Screen</string>
+    <string name = "setup_screen_title">Setup</string>
+    <string name = "wear_config_screen">Wear Settings</string>
+    <string name = "edit_preset_1">Edit Preset 1</string>
+    <string name = "edit_preset_2">Edit Preset 2</string>
+    <string name = "edit_preset_3">Edit Preset 3</string>
+    <string name = "edit_preset_4">Edit Preset 4</string>
+</resources>
