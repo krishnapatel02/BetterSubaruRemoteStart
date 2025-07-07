@@ -3,6 +3,8 @@ package com.kpatel.subarustart_wear.pages
 import android.annotation.SuppressLint
 import android.content.Context
 import android.widget.Toast
+import android.widget.ToggleButton
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -86,6 +89,7 @@ fun submitData(
     datastore: DataStoreRepo,
     context: Context,
     pin: String,
+    useLocation: Boolean,
     controller: NavController
 ){
 
@@ -96,6 +100,7 @@ fun submitData(
             datastore.setPassword(password)
             datastore.setVehicleKey(vehicleKey)
             datastore.setDeviceID(deviceID)
+            datastore.setLocationSetting(useLocation)
             datastore.setPin(pin)
         }
         controller.popBackStack()
@@ -114,6 +119,7 @@ fun SetupScreen(datastore: DataStoreRepo, context: Context, navController: NavCo
     var vehicleKey by remember { mutableStateOf("")}
     var deviceID by remember { mutableStateOf("")}
     var pin by remember { mutableStateOf("")}
+    var location by remember { mutableStateOf(false)}
     val uriHandler = LocalUriHandler.current
     val annotatedLinkString: AnnotatedString = buildAnnotatedString {
 
@@ -232,13 +238,24 @@ fun SetupScreen(datastore: DataStoreRepo, context: Context, navController: NavCo
                         }, label = {Text("Pin")}
                     )
                     Spacer(modifier = Modifier.padding(top = 25.dp))
+                    Spacer(modifier = Modifier.padding(top = 5.dp))
+
+                    Row(){
+                        Checkbox(checked = location, onCheckedChange = {location = it})
+                        Spacer(modifier = Modifier.padding(end = 5.dp))
+                        Text(text = "Enable location services for setting temperature automatically")
+                    }
+                    Spacer(modifier = Modifier.padding(top = 5.dp))
                 }
+
 
 
                 Button(onClick = {submitData(onSubmitNavRoute, username, password,
-                    vehicleKey, deviceID, datastore, context, pin, navController)}) {
+                    vehicleKey, deviceID, datastore, context, pin,location, navController)}) {
                     Text(text = "Submit")
                 }
+
+
 
             }
 
@@ -250,5 +267,4 @@ fun SetupScreen(datastore: DataStoreRepo, context: Context, navController: NavCo
 @Preview(showBackground = true)
 @Composable
 fun SetupPreview() {
-
-}
+    }

@@ -37,6 +37,8 @@ import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
 import com.kpatel.subarustart_wear.pages.MainPage
 import com.kpatel.subarustart_wear.pages.SetupScreen
+import com.kpatel.subarustart_wear.pages.SetupScreen2
+import com.kpatel.subarustart_wear.pages.SetupScreen3
 import com.kpatel.subarustart_wear.pages.UpdatePresetScreen
 import com.kpatel.subarustart_wear.pages.UpdateWearScreen
 import com.kpatel.subarustart_wear.ui.theme.SubaruStart_WearTheme
@@ -53,6 +55,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 enum class Screens(@StringRes val title: Int){
     Setup(title=R.string.setup_screen_title),
+    Setup2(title=R.string.setup2_screen_title),
+    Setup3(title=R.string.setup3_screen_title),
     Main(title = R.string.main_screen_title),
     WearConfig(title = R.string.wear_config_screen),
     EditPreset1(title = R.string.edit_preset_1),
@@ -142,8 +146,32 @@ fun MainScreen(
                      currentScreen = Screens.valueOf(
                         backStackEntry?.destination?.route ?: Screens.Setup.name
                     )
-                    SetupScreen (dataStore, mainActivity.applicationContext, navController) {
-                        navController.navigate(Screens.Main.name)
+                    SetupScreen3 (dataStore, mainActivity.applicationContext, navController) {
+                        val location = runBlocking { dataStore.getLocationSetting() }
+                        if(location){
+                            navController.navigate(Screens.Setup2.name)
+                        }else{
+                            navController.navigate(Screens.Main.name)
+
+                        }
+                    }
+                }
+                composable(route = Screens.Setup2.name){
+                    currentScreenName = Screens.Setup2.name
+                    currentScreen = Screens.valueOf(
+                        backStackEntry?.destination?.route ?: Screens.Setup2.name
+                    )
+                    SetupScreen2(dataStore, mainActivity.applicationContext, navController) {
+                        navController.navigate(Screens.Setup3.name)
+                    }
+                }
+                composable(route = Screens.Setup2.name){
+                    currentScreenName = Screens.Setup2.name
+                    currentScreen = Screens.valueOf(
+                        backStackEntry?.destination?.route ?: Screens.Setup2.name
+                    )
+                    SetupScreen3(dataStore, mainActivity.applicationContext, navController) {
+                        navController.navigate(Screens.Setup3.name)
                     }
                 }
                 composable(route = Screens.Main.name){

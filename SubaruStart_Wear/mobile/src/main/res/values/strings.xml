@@ -10,6 +10,8 @@
     <string name = "pin_placeholder">PIN: (ex: 1023)</string>
     <string name = "main_screen_title">Main Screen</string>
     <string name = "setup_screen_title">Setup</string>
+    <string name = "setup2_screen_title">Setup Location</string>
+    <string name = "setup3_screen_title">Setup Start Presets</string>
     <string name = "wear_config_screen">Wear Settings</string>
     <string name = "edit_preset_1">Edit Preset 1</string>
     <string name = "edit_preset_2">Edit Preset 2</string>

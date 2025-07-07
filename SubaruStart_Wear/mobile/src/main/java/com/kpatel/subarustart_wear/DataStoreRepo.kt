@@ -19,6 +19,7 @@ class DataStoreRepo(private val context: Context) {
         //Set all preference keys up...
         val firstSetup = booleanPreferencesKey("first_setup")
         val lockBackgroundService = booleanPreferencesKey("lock_background_service")
+        val openWeatherAPIKey = stringPreferencesKey("openWeatherAPIKey")
         val username = stringPreferencesKey("username")
         val password = stringPreferencesKey("password")
         val deviceID = stringPreferencesKey("deviceID")
@@ -68,12 +69,25 @@ class DataStoreRepo(private val context: Context) {
         val wearVentSetting = stringPreferencesKey("wearVentSetting")
         val wearRearDefrostSetting = booleanPreferencesKey("rearDefrostSetting")
         val wearAirCircSetting = stringPreferencesKey("wearAirCircSetting")
+
+        val useLocation = booleanPreferencesKey("useLocation")
     }
     fun stopDatastore(){
 
     }
 
     //Various functions to set/get all settings, defaults returned if user has not set any...
+
+    suspend fun setLocationSetting(boolean: Boolean){
+        dataStore.edit { preferences->
+            preferences[PreferenceKeys.useLocation] = boolean
+        }
+    }
+
+    suspend fun getLocationSetting(): Boolean {
+        return  context.dataStore.data.first()[PreferenceKeys.useLocation] ?: false
+    }
+
     suspend fun setWearTemp(temp: Int){
         dataStore.edit { preferences->
             preferences[PreferenceKeys.wearTemp] = temp
@@ -124,6 +138,16 @@ class DataStoreRepo(private val context: Context) {
         dataStore.edit { preferences ->
             preferences[PreferenceKeys.wearRearDefrostSetting] = rearDefroster
         }
+    }
+    suspend fun setOpenWeatherAPIKey(key: String){
+        dataStore.edit { preferences ->
+            preferences[PreferenceKeys.openWeatherAPIKey] = key
+        }
+    }
+
+    suspend fun getOpenWeatherAPIKey(): String {
+        return  context.dataStore.data.first()[PreferenceKeys.openWeatherAPIKey] ?: ""
+
     }
 
     suspend fun setUsername(username: String){
