@@ -5,9 +5,18 @@ package com.kpatel.subarustart_wear
 * handles requests from watch.
 *
 * */
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Looper
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
 import okhttp3.Callback
@@ -18,8 +27,10 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.json.JSONObject
 import ru.gildor.coroutines.okhttp.await
 import java.io.IOException
+import kotlin.properties.Delegates
 
 class CookieTracker : CookieJar {
     //OkHttp doesn't keep the cookies for the session, this allows cookies to stay persistent after logging in.
@@ -71,7 +82,81 @@ suspend fun login(username: String, password: String, vehicleKey: String, device
     return status
 }
 
+fun getLocation(context: Context, onLocationResult: (Location?) -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED &&
+        ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        Toast.makeText(context, "Location permission not granted", Toast.LENGTH_SHORT).show()
+        onLocationResult(null)
+        return
+    }
+
+    val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
+        .setMinUpdateIntervalMillis(2000L)
+        .setMaxUpdateDelayMillis(10000L)
+        .build()
+
+    val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            fusedLocationClient.removeLocationUpdates(this)
+            onLocationResult(locationResult.lastLocation)
+        }
+    }
+
+    fusedLocationClient.requestLocationUpdates(
+        locationRequest,
+        locationCallback,
+        Looper.getMainLooper()
+    )
+}
+fun getTemperatureFromWeatherApi(lat: Double, lon: Double, apiKey: String): String? {
+    val client = OkHttpClient()
+    val url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=imperial"
+
+    val request = Request.Builder()
+        .url(url)
+        .build()
+
+    return try {
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            val jsonData = response.body?.string()
+            val jsonObject = JSONObject(jsonData)
+            val main = jsonObject.getJSONObject("main")
+            val temperature = main.getDouble("temp")
+            "$temperature°F"
+        } else {
+            null
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+fun getWeather(context: Context, datastore: DataStoreRepo): String? {
+    var lat by Delegates.notNull<Double>()
+    var lon by Delegates.notNull<Double>()
+    var api_key = runBlocking { datastore.getOpenWeatherAPIKey() }
+    getLocation(context) { location ->
+        if (location != null) {
+             lat = location.latitude
+            lon = location.longitude
+            println("Coordinates: $lat, $lon")
+        } else {
+            println("Location not available.")
+        }
+    }
+    return getTemperatureFromWeatherApi(lat, lon, api_key)
+}
 
 
 

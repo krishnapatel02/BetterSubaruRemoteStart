@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.protobuf") version "0.9.4"
 }
 
 android {
@@ -52,6 +53,12 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-decoder:1.2.1")
+    implementation("com.google.accompanist:accompanist-flowlayout:0.34.0") // or latest
+    implementation("com.google.accompanist:accompanist-pager:0.34.0")
+    implementation("androidx.datastore:datastore:1.0.0")
+    implementation("androidx.datastore:datastore-core:1.0.0")
+    implementation("com.google.protobuf:protobuf-java:3.24.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     val nav_version = "2.7.6"
     implementation ("com.google.code.gson:gson:2.10.1")
     implementation("androidx.navigation:navigation-compose:$nav_version")
@@ -74,4 +81,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     wearApp(project(":wear"))
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.24.0"
+    }
+    generateProtoTasks {
+        all().forEach {
+            it.builtins {
+                create("java") // or kotlin if you use proto-kotlin
+            }
+        }
+    }
 }

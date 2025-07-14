@@ -2,19 +2,68 @@ package com.kpatel.subarustart_wear
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.dataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.kpatel.subarustart_wear.data.TempSettingSerializer
 import kotlinx.coroutines.flow.first
 
 const val PREFERENCE_NAME = "user_settings"
 
 class DataStoreRepo(private val context: Context) {
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = PREFERENCE_NAME)
+    val Context.tempSettingsDataStore: DataStore<TempSettingsStore> by dataStore(
+        fileName = "temp_settings.pb",
+        serializer = TempSettingSerializer
+    )
     private val dataStore = context.dataStore
+    private val recommendedDefaults = mapOf(
+        "<40°F" to TempSettings.newBuilder()
+            .setInteriorTemp(80)
+            .setRearDefrost(true)
+            .setVentSetting("WINDOW")
+            .setEngineRuntime(10)
+            .setAirRecirculation("recirculation")
+            .build(),
+
+        "40–60°F" to TempSettings.newBuilder()
+            .setInteriorTemp(80)
+            .setRearDefrost(false)
+            .setVentSetting("FEET_WINDOW")
+            .setEngineRuntime(10)
+            .setAirRecirculation("recirculation")
+            .build(),
+
+        "60–70°F" to TempSettings.newBuilder()
+            .setInteriorTemp(70)
+            .setRearDefrost(false)
+            .setVentSetting("FEET_FACE_BALANCED")
+            .setEngineRuntime(5)
+            .setAirRecirculation("recirculation")
+            .build(),
+        "70–80°F" to TempSettings.newBuilder()
+            .setInteriorTemp(70)
+            .setRearDefrost(false)
+            .setVentSetting("FEET_FACE_BALANCED")
+            .setEngineRuntime(5)
+            .setAirRecirculation("recirculation")
+            .build(),
+        "80°F+" to TempSettings.newBuilder()
+            .setInteriorTemp(60)
+            .setRearDefrost(false)
+            .setVentSetting("FEET_FACE_BALANCED")
+            .setEngineRuntime(10)
+            .setAirRecirculation("recirculation")
+            .build(),
+
+        // Add the rest...
+    )
+
+
     private  object  PreferenceKeys{
         //Set all preference keys up...
         val firstSetup = booleanPreferencesKey("first_setup")
@@ -72,11 +121,27 @@ class DataStoreRepo(private val context: Context) {
 
         val useLocation = booleanPreferencesKey("useLocation")
     }
+
     fun stopDatastore(){
 
     }
 
     //Various functions to set/get all settings, defaults returned if user has not set any...
+
+    suspend fun getTempSettings(label: String): TempSettings {
+        val map = context.tempSettingsDataStore.data.first().perTempRangeMap
+        return map[label] ?: recommendedDefaults[label] ?: TempSettings.getDefaultInstance()
+    }
+
+    suspend fun saveTempSettings(label: String, newSetting: TempSettings) {
+        context.tempSettingsDataStore.updateData { currentProtoSettings -> // currentProtoSettings is TempSettingsStore
+            val updated = currentProtoSettings.toBuilder() // This should now work
+                .putPerTempRange(label, newSetting)
+                .build()
+            updated
+        }
+    }
+
 
     suspend fun setLocationSetting(boolean: Boolean){
         dataStore.edit { preferences->

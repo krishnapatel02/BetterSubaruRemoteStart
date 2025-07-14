@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option java_package = "com.kpatel.subarustart_wear";
+option java_multiple_files = true;
+
+message TempSettings {
+  string vent_setting = 1;
+  bool rear_defrost = 2;
+  int32 interior_temp = 3;
+  int32 engine_runtime = 4;
+  string air_recirculation = 5;
+}
+
+message TempSettingsStore {
+  map<string, TempSettings> per_temp_range = 1;
+}
