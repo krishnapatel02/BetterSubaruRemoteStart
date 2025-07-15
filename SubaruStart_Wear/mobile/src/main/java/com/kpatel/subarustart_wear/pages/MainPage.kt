@@ -144,8 +144,13 @@ fun PresetCard(modifier: Modifier = Modifier, cardNumber: Int, context: Context,
 
 }
 
-fun onClickWearButton(navController: NavHostController){
-    navController.navigate(Screens.WearConfig.name)
+fun onClickWearButton(navController: NavHostController, useLocation: Boolean = false){
+    if(useLocation){
+        navController.navigate(Screens.Setup3.name)
+
+    }else {
+        navController.navigate(Screens.WearConfig.name)
+    }
 }
 
 
@@ -193,6 +198,7 @@ fun MainPage(
     var locked by remember{ mutableStateOf(true)}
     var unlocked by remember{ mutableStateOf(true)}
     val dataStore = DataStoreSingleton.getDataStoreRepo()
+    var useLocation = runBlocking { dataStore.getLocationSetting() }
     LaunchedEffect(locked) {
         if (locked) return@LaunchedEffect
         else delay(20000)
@@ -218,7 +224,7 @@ fun MainPage(
             Spacer(Modifier.size(5.dp))
             Text(text = "Edit Watch Preset")
             Spacer(Modifier.size(10.dp))
-            Button(onClick = { onClickWearButton(navController) }, shape = CircleShape, modifier= Modifier.size(50.dp),
+            Button(onClick = { onClickWearButton(navController, useLocation) }, shape = CircleShape, modifier= Modifier.size(50.dp),
                 contentPadding = PaddingValues(0.dp)) {
                 Icon(painter = painterResource(
                     R.drawable.watch

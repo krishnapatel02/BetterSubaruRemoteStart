@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationCallback
@@ -18,6 +19,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Cookie
@@ -30,7 +32,8 @@ import okhttp3.Response
 import org.json.JSONObject
 import ru.gildor.coroutines.okhttp.await
 import java.io.IOException
-import kotlin.properties.Delegates
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class CookieTracker : CookieJar {
     //OkHttp doesn't keep the cookies for the session, this allows cookies to stay persistent after logging in.
@@ -82,81 +85,124 @@ suspend fun login(username: String, password: String, vehicleKey: String, device
     return status
 }
 
-fun getLocation(context: Context, onLocationResult: (Location?) -> Unit) {
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+suspend fun getLocationSuspending(context: Context): Location? =
+    suspendCancellableCoroutine { continuation ->
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED &&
-        ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        Toast.makeText(context, "Location permission not granted", Toast.LENGTH_SHORT).show()
-        onLocationResult(null)
-        return
-    }
+        if (ActivityCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(context, "Location permission not granted", Toast.LENGTH_SHORT).show()
+            continuation.resume(null)
+            return@suspendCancellableCoroutine
+        }
 
-    val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
-        .setMinUpdateIntervalMillis(2000L)
-        .setMaxUpdateDelayMillis(10000L)
-        .build()
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
+            .setMinUpdateIntervalMillis(2000L)
+            .setMaxUpdateDelayMillis(10000L)
+            .build()
 
-    val locationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            fusedLocationClient.removeLocationUpdates(this)
-            onLocationResult(locationResult.lastLocation)
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                fusedLocationClient.removeLocationUpdates(this)
+                continuation.resume(locationResult.lastLocation)
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback,
+            Looper.getMainLooper()
+        )
+
+        continuation.invokeOnCancellation {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
         }
     }
-
-    fusedLocationClient.requestLocationUpdates(
-        locationRequest,
-        locationCallback,
-        Looper.getMainLooper()
-    )
-}
-fun getTemperatureFromWeatherApi(lat: Double, lon: Double, apiKey: String): String? {
+suspend fun getTemperatureFromWeatherApiManualSuspend(lat: Double, lon: Double, apiKey: String): String? {
+    val TAG = "WeatherAPI_Manual"
     val client = OkHttpClient()
+
+    if (apiKey.isEmpty()) {
+        Log.w(TAG, "API Key is empty. Weather API call will likely fail.")
+        return null
+    }
     val url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=imperial"
+    Log.d(TAG, "Requesting URL: $url")
+
 
     val request = Request.Builder()
         .url(url)
         .build()
 
-    return try {
-        val response = client.newCall(request).execute()
-        if (response.isSuccessful) {
-            val jsonData = response.body?.string()
-            val jsonObject = JSONObject(jsonData)
-            val main = jsonObject.getJSONObject("main")
-            val temperature = main.getDouble("temp")
-            "$temperature°F"
-        } else {
-            null
+    return suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e(TAG, "OkHttp call failed", e)
+                if (continuation.isActive) {
+                    continuation.resumeWithException(e)
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!continuation.isActive) return
+
+                try {
+                    if (response.isSuccessful) {
+                        val jsonData = response.body?.string() // .string() can only be called once
+                        if (jsonData == null) {
+                            Log.w(TAG, "Response body was null.")
+                            continuation.resume(null)
+                            return
+                        }
+                        Log.d(TAG, "Successful response. JSON Data: $jsonData")
+                        val jsonObject = JSONObject(jsonData)
+                        val main = jsonObject.getJSONObject("main")
+                        val temperature = main.getDouble("temp")
+                        Log.d(TAG, "Parsed temperature: $temperature")
+                        continuation.resume("$temperature")
+                    } else {
+                        Log.w(TAG, "API call not successful. Code: ${response.code}, Message: ${response.message}")
+                        response.body?.string()?.let { errorBody -> // Consume error body
+                            Log.w(TAG, "Error body: $errorBody")
+                        }
+                        continuation.resume(null)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Exception parsing response or JSON", e)
+                    continuation.resumeWithException(e)
+                } finally {
+                    response.close() // Ensure the response body is closed
+                }
+            }
+        })
+
+        continuation.invokeOnCancellation {
+            call.cancel()
+            Log.d(TAG, "Coroutine cancelled, OkHttp call cancelled.")
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
     }
 }
 
-fun getWeather(context: Context, datastore: DataStoreRepo): String? {
-    var lat by Delegates.notNull<Double>()
-    var lon by Delegates.notNull<Double>()
+suspend fun getWeather(context: Context, datastore: DataStoreRepo): Int {
+    var lat: Double = 45.4869 //Default to beaverton cause why not?
+    var lon: Double = -122.8040
     var api_key = runBlocking { datastore.getOpenWeatherAPIKey() }
-    getLocation(context) { location ->
-        if (location != null) {
-             lat = location.latitude
-            lon = location.longitude
-            println("Coordinates: $lat, $lon")
-        } else {
-            println("Location not available.")
-        }
+    val location = getLocationSuspending(context)
+    if (location != null) {
+        lat = location.latitude
+        lon = location.longitude
+    } else {
+        Log.w("getWeather", "Falling back to default coordinates")
     }
-    return getTemperatureFromWeatherApi(lat, lon, api_key)
-}
+    return runBlocking {
+        getTemperatureFromWeatherApiManualSuspend(lat, lon, api_key)?.toDoubleOrNull()?.toInt()
+    } ?: 60}
 
 
 
@@ -178,23 +224,27 @@ fun executeMobile(cardNumber: Int, context: Context){
     var climateZoneAirMode = ""
     var heatedRearWindow = ""
     var engineRuntime = ""
+    var useLocation = false
     var temperature = ""
     val url = "https://www.mysubaru.com/login"
     var toastText = ""
     val body = FormBody.Builder()
     var status = false
-    runBlocking {
-        username = datastore.getUsername()
-        password = datastore.getPassword()
-        vehicleKey = datastore.getVehicleKey()
-        deviceID = datastore.getDeviceID()
-        pin = datastore.getPin()
-        airCirc = datastore.getCardAirCirc(cardNumber)
-        climateZoneAirMode = datastore.getCardVentSetting(cardNumber)
-        temperature = datastore.getCardTemp(cardNumber).toString()
-        heatedRearWindow = datastore.getCardRearDefrost(cardNumber).toString()
-        engineRuntime = datastore.getCardRuntime(cardNumber).toString()
-    }
+
+
+        runBlocking {
+            username = datastore.getUsername()
+            password = datastore.getPassword()
+            vehicleKey = datastore.getVehicleKey()
+            deviceID = datastore.getDeviceID()
+            pin = datastore.getPin()
+            airCirc = datastore.getCardAirCirc(cardNumber)
+            climateZoneAirMode = datastore.getCardVentSetting(cardNumber)
+            temperature = datastore.getCardTemp(cardNumber).toString()
+            heatedRearWindow = datastore.getCardRearDefrost(cardNumber).toString()
+            engineRuntime = datastore.getCardRuntime(cardNumber).toString()
+        }
+
     body.add("username", username)
         .add("password", password)
         .add("lastSelectedVehicleKey", vehicleKey)
@@ -203,7 +253,6 @@ fun executeMobile(cardNumber: Int, context: Context){
     val form = body.build()
 
     val request = Request.Builder().url(url = url).post(form).build()
-
     client.newCall(request).enqueue(object : Callback{
         //Have to enqueue the request, can't execute otherwise thread gets blocked... enqueue automatically creates a background thread.
         override fun onFailure(call: Call, e: IOException) {
@@ -242,20 +291,43 @@ fun execute(context: Context, action: String, datastore: DataStoreRepo): String 
     var heatedRearWindow = ""
     var engineRuntime = ""
     var temperature = ""
+    var useLocation = false
+    runBlocking {useLocation = datastore.getLocationSetting() }
 
-    runBlocking {
-        username = datastore.getUsername()
-        password = datastore.getPassword()
-        vehicleKey = datastore.getVehicleKey()
-        deviceID = datastore.getDeviceID()
-        pin = datastore.getPin()
-        airCirc = datastore.getWearAirRecirc()
-        climateZoneAirMode = datastore.getWearVentSetting()
-        temperature = datastore.getWearTemp().toString()
-        heatedRearWindow = datastore.getWearRearDefroster().toString()
-        engineRuntime = datastore.getWearRuntime().toString()
+    if(!useLocation) {
+        runBlocking {
+            username = datastore.getUsername()
+            password = datastore.getPassword()
+            vehicleKey = datastore.getVehicleKey()
+            deviceID = datastore.getDeviceID()
+            pin = datastore.getPin()
+            airCirc = datastore.getWearAirRecirc()
+            climateZoneAirMode = datastore.getWearVentSetting()
+            temperature = datastore.getWearTemp().toString()
+            heatedRearWindow = datastore.getWearRearDefroster().toString()
+            engineRuntime = datastore.getWearRuntime().toString()
+        }
     }
-
+    else{
+        var tempF = runBlocking{getWeather(context, datastore)}
+        Log.d("tempF getWeather Result", tempF.toString())
+        var label = datastore.getLabelForTemperature(tempF)
+        var tempSettings = runBlocking {datastore.getTempSettings(label)}
+        Log.d("tempSettings", tempSettings.toString())
+        Log.d("tempF", tempF.toString())
+        Log.d("label", label)
+        temperature = tempSettings.interiorTemp.toString()
+        airCirc = tempSettings.airRecirculation
+        climateZoneAirMode = tempSettings.ventSetting
+        heatedRearWindow = tempSettings.rearDefrost.toString()
+        engineRuntime = tempSettings.engineRuntime.toString()
+        runBlocking {
+            username = datastore.getUsername()
+            password = datastore.getPassword()
+            vehicleKey = datastore.getVehicleKey()
+            deviceID = datastore.getDeviceID()
+        }
+    }
     //create form.
     body.add("username", username)
         .add("password", password)
@@ -265,6 +337,7 @@ fun execute(context: Context, action: String, datastore: DataStoreRepo): String 
     val form = body.build()
     //build form and request
     val request = Request.Builder().url(url = url).post(form).build()
+    Log.d("request", request.toString())
 
     client.newCall(request).enqueue(object : Callback{
         override fun onFailure(call: Call, e: IOException) {

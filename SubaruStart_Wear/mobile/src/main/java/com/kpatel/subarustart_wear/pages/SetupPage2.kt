@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.net.Uri.fromParts
 import android.os.Build
 import android.provider.Settings
@@ -33,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.kpatel.subarustart_wear.DataStoreRepo
 import kotlinx.coroutines.runBlocking
@@ -123,7 +121,9 @@ fun SetupScreen2(
                     )
                 }
                 Spacer(modifier = Modifier.padding(top = 5.dp))
-                Button(onClick = { runBlocking { datastore.setOpenWeatherAPIKey(openWeatherAPI) } }) {
+                Button(onClick = { runBlocking { datastore.setOpenWeatherAPIKey(openWeatherAPI) }
+                    onSubmitNavRoute();
+                }) {
                     Text("Submit API Key")
                 }
             }

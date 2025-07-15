@@ -146,7 +146,7 @@ fun MainScreen(
                      currentScreen = Screens.valueOf(
                         backStackEntry?.destination?.route ?: Screens.Setup.name
                     )
-                    SetupScreen3 (dataStore, mainActivity.applicationContext, navController) {
+                    SetupScreen (dataStore, mainActivity.applicationContext, navController) {
                         val location = runBlocking { dataStore.getLocationSetting() }
                         if(location){
                             navController.navigate(Screens.Setup2.name)
@@ -165,13 +165,13 @@ fun MainScreen(
                         navController.navigate(Screens.Setup3.name)
                     }
                 }
-                composable(route = Screens.Setup2.name){
-                    currentScreenName = Screens.Setup2.name
+                composable(route = Screens.Setup3.name){
+                    currentScreenName = Screens.Setup3.name
                     currentScreen = Screens.valueOf(
-                        backStackEntry?.destination?.route ?: Screens.Setup2.name
+                        backStackEntry?.destination?.route ?: Screens.Setup3.name
                     )
                     SetupScreen3(dataStore, mainActivity.applicationContext, navController) {
-                        navController.navigate(Screens.Setup3.name)
+                        navController.navigate(Screens.Main.name)
                     }
                 }
                 composable(route = Screens.Main.name){

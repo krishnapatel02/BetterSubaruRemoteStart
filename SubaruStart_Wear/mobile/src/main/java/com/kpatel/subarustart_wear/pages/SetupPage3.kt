@@ -145,7 +145,8 @@ fun SetupScreen3(
                             tempSettingsMap.forEach { (label, setting) ->
                                 datastore.saveTempSettings(label, setting)
                             }
-                            datastore.setFirstSetup(true)
+                            datastore.setFirstSetup(false)
+                            datastore.setLocationSetting(true)
                             onSubmitNavRoute?.invoke()
                         }
                     }

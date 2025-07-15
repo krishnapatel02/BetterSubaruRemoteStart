@@ -1,6 +1,7 @@
 package com.kpatel.subarustart_wear
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStore
 import androidx.datastore.preferences.core.Preferences
@@ -21,6 +22,15 @@ class DataStoreRepo(private val context: Context) {
         serializer = TempSettingSerializer
     )
     private val dataStore = context.dataStore
+    fun getLabelForTemperature(tempF: Int): String {
+        return when {
+            tempF < 40 -> "<40°F"
+            tempF in 40..59 -> "40–60°F"
+            tempF in 60..69 -> "60–70°F"
+            tempF in 70..79 -> "70–80°F"
+            else -> "80°F+"
+        }
+    }
     private val recommendedDefaults = mapOf(
         "<40°F" to TempSettings.newBuilder()
             .setInteriorTemp(80)
@@ -257,12 +267,14 @@ class DataStoreRepo(private val context: Context) {
     }
 
     suspend fun setPin(pin: String){
+        Log.d("DataStoreRepo", "Setting pin to $pin")
         dataStore.edit { preferences ->
             preferences[PreferenceKeys.pin] = pin
         }
     }
 
     suspend fun setFirstSetup(setup: Boolean){
+        Log.d("DataStoreRepo", "Setting first setup to $setup")
         dataStore.edit { preferences ->
             preferences[PreferenceKeys.firstSetup] = setup
         }
