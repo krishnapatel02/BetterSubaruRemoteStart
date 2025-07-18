@@ -2,29 +2,28 @@ name: Build Phone and Wear APKs
 
 on:
   push:
-    branches:
-      - '**'  # This matches all branches
-  pull_request:
-    branches:
-      - '**'  # Optional: Run on all PRs too
+    branches: ["**"]  # Run on all branches
 
 jobs:
   build:
-    name: Build Unsigned APKs
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: SubaruStart_Wear  
+
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 17  # Change if you're using a different version
+          java-version: '17'  
 
-      - name: Grant Gradle execute permission
-        run: chmod +x gradlew
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Build phone app (debug)
         run: ./gradlew :app:assembleDebug
@@ -36,10 +35,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: phone-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: SubaruStart_Wear/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload Wear APK
         uses: actions/upload-artifact@v4
         with:
           name: wear-debug-apk
-          path: wear/build/outputs/apk/debug/wear-debug.apk
+          path: SubaruStart_Wear/wear/build/outputs/apk/debug/wear-debug.apk
