@@ -1,0 +1,45 @@
+name: Build Phone and Wear APKs
+
+on:
+  push:
+    branches:
+      - '**'  # This matches all branches
+  pull_request:
+    branches:
+      - '**'  # Optional: Run on all PRs too
+
+jobs:
+  build:
+    name: Build Unsigned APKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17  # Change if you're using a different version
+
+      - name: Grant Gradle execute permission
+        run: chmod +x gradlew
+
+      - name: Build phone app (debug)
+        run: ./gradlew :app:assembleDebug
+
+      - name: Build wear app (debug)
+        run: ./gradlew :wear:assembleDebug
+
+      - name: Upload Phone APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Wear APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-debug-apk
+          path: wear/build/outputs/apk/debug/wear-debug.apk
