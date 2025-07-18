@@ -3,15 +3,12 @@ name: Build Debug APKs and Create Release
 on:
   push:
     branches: ["**"]        # Build on all branches
-    tags: ["v*"]            # Release on tags starting with 'v'
+    tags: ["v*"]            # Trigger release on tags starting with 'v'
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      phone-apk-path: ${{ steps.upload-phone.outputs.artifact-path }}
-      wear-apk-path: ${{ steps.upload-wear.outputs.artifact-path }}
 
     steps:
       - name: Checkout repo
@@ -35,14 +32,12 @@ jobs:
         run: ./gradlew :wear:assembleDebug
 
       - name: Upload Phone APK
-        id: upload-phone
         uses: actions/upload-artifact@v4
         with:
           name: phone-debug-apk
           path: SubaruStart_Wear/mobile/build/outputs/apk/debug/*.apk
 
       - name: Upload Wear APK
-        id: upload-wear
         uses: actions/upload-artifact@v4
         with:
           name: wear-debug-apk
@@ -66,32 +61,15 @@ jobs:
           name: wear-debug-apk
           path: ./release-artifacts/wear
 
-      - name: Create Release
-        id: create_release
+      - name: Create GitHub Release and Upload APKs
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: Release created from tag ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Phone APK to Release
-        uses: softprops/action-gh-release-upload@v1
-        with:
-          release_id: ${{ steps.create_release.outputs.id }}
-          asset_path: ./release-artifacts/phone/*.apk
-          asset_name: phone-debug.apk
-          asset_content_type: application/vnd.android.package-archive
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Wear APK to Release
-        uses: softprops/action-gh-release-upload@v1
-        with:
-          release_id: ${{ steps.create_release.outputs.id }}
-          asset_path: ./release-artifacts/wear/*.apk
-          asset_name: wear-debug.apk
-          asset_content_type: application/vnd.android.package-archive
+          body: |
+            APKs built for tag ${{ github.ref_name }}
+          files: |
+            ./release-artifacts/phone/*.apk
+            ./release-artifacts/wear/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
