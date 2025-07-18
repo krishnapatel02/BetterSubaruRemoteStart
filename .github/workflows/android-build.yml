@@ -1,44 +1,43 @@
-name: Build Phone and Wear APKs
+name: Build Debug APKs
 
 on:
   push:
-    branches: ["**"]  # Run on all branches
+    branches: ["**"]  # All branches
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: SubaruStart_Wear  
-
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'  
+          java-version: 17
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Grant execute permission for gradlew
+        run: chmod +x SubaruStart_Wear/gradlew
 
-      - name: Build phone app (debug)
-        run: ./gradlew :app:assembleDebug
+      - name: Build Phone APK (mobile)
+        working-directory: SubaruStart_Wear
+        run: ./gradlew :mobile:assembleDebug
 
-      - name: Build wear app (debug)
+      - name: Build Wear APK (wear)
+        working-directory: SubaruStart_Wear
         run: ./gradlew :wear:assembleDebug
 
       - name: Upload Phone APK
         uses: actions/upload-artifact@v4
         with:
           name: phone-debug-apk
-          path: SubaruStart_Wear/app/build/outputs/apk/debug/app-debug.apk
+          path: SubaruStart_Wear/mobile/build/outputs/apk/debug/*.apk
 
       - name: Upload Wear APK
         uses: actions/upload-artifact@v4
         with:
           name: wear-debug-apk
-          path: SubaruStart_Wear/wear/build/outputs/apk/debug/wear-debug.apk
+          path: SubaruStart_Wear/wear/build/outputs/apk/debug/*.apk
