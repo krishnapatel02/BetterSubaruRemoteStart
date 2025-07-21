@@ -1,0 +1,75 @@
+name: Build Debug APKs and Create Release
+
+on:
+  push:
+    branches: ["**"]        # Build on all branches
+    tags: ["v*"]            # Trigger release on tags starting with 'v'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x SubaruStart_Wear/gradlew
+
+      - name: Build Phone APK (mobile)
+        working-directory: SubaruStart_Wear
+        run: ./gradlew :mobile:assembleDebug
+
+      - name: Build Wear APK (wear)
+        working-directory: SubaruStart_Wear
+        run: ./gradlew :wear:assembleDebug
+
+      - name: Upload Phone APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-debug-apk
+          path: SubaruStart_Wear/mobile/build/outputs/apk/debug/*.apk
+
+      - name: Upload Wear APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-debug-apk
+          path: SubaruStart_Wear/wear/build/outputs/apk/debug/*.apk
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download Phone APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: phone-debug-apk
+          path: ./release-artifacts/phone
+
+      - name: Download Wear APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wear-debug-apk
+          path: ./release-artifacts/wear
+
+      - name: Create GitHub Release and Upload APKs
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            APKs built for tag ${{ github.ref_name }}
+          files: |
+            ./release-artifacts/phone/*.apk
+            ./release-artifacts/wear/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
