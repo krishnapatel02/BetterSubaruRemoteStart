@@ -329,7 +329,7 @@ fun execute(context: Context, action: String, datastore: DataStoreRepo, location
     var useLocation = false
     runBlocking {useLocation = datastore.getLocationSetting() }
 
-    if(!useLocation || locationOverride) {
+    if(locationOverride || !useLocation ) {
         runBlocking {
             username = datastore.getUsername()
             password = datastore.getPassword()
