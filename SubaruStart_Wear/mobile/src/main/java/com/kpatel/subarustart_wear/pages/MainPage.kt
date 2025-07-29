@@ -158,7 +158,7 @@ fun onClickWearButton(navController: NavHostController, useLocation: Boolean = f
 @OptIn(DelicateCoroutinesApi::class)
 suspend fun onClickLock(context: Context, haptic: HapticFeedback){
     val datastore = DataStoreSingleton.getDataStoreRepo()
-    execute(context, "lock", datastore)
+    execute(context, "lock", datastore, true)
     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 }
 
@@ -166,7 +166,7 @@ suspend fun onClickLock(context: Context, haptic: HapticFeedback){
 suspend fun onClickUnlock(context: Context, haptic: HapticFeedback){
 
     val datastore = DataStoreSingleton.getDataStoreRepo()
-    execute(context, "unlock", datastore)
+    execute(context, "unlock", datastore, true)
     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
 }

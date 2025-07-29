@@ -42,8 +42,8 @@ class DataLayerListenerService(): WearableListenerService() {
         println(p0.path)
         //Run watch request depending on which is selected.
         when(p0.path){
-            "LockAll" -> {
-                toastText = execute(this, "lock", datastore)
+            "LockAll" -> { //Bypass location to make request faster, not needed for Lock or Unlock
+                toastText = execute(this, "lock", datastore, true)
                 Toast.makeText(this, toastText, Toast.LENGTH_SHORT).show()
             }
             "StartEngine"->{
@@ -51,7 +51,7 @@ class DataLayerListenerService(): WearableListenerService() {
                 Toast.makeText(this, toastText, Toast.LENGTH_SHORT).show()
             }
             "UnlockAll"->{
-                toastText = execute(this, "unlock", datastore)
+                toastText = execute(this, "unlock", datastore, true)
                 Toast.makeText(this, toastText, Toast.LENGTH_SHORT).show()
             }
         }

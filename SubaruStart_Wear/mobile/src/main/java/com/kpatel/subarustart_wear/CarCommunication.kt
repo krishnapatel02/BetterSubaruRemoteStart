@@ -18,6 +18,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
@@ -89,6 +90,7 @@ suspend fun getLocationSuspending(context: Context): Location? =
     suspendCancellableCoroutine { continuation ->
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
+        // Step 1: Check permissions
         if (ActivityCompat.checkSelfPermission(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED &&
@@ -96,33 +98,66 @@ suspend fun getLocationSuspending(context: Context): Location? =
                 context, Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(context, "Location permission not granted", Toast.LENGTH_SHORT).show()
             continuation.resume(null)
             return@suspendCancellableCoroutine
         }
 
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
-            .setMinUpdateIntervalMillis(2000L)
-            .setMaxUpdateDelayMillis(10000L)
-            .build()
+        // Step 2: Try last known location (cached)
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null && System.currentTimeMillis() - location.time <= 2 * 60 * 1000) {
+                    // Use cached location if it's less than 2 minutes old
+                    continuation.resume(location)
+                } else {
+                    // Step 3: Try getCurrentLocation (quick one-shot)
+                    val priority = if (ActivityCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
 
-        val locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                fusedLocationClient.removeLocationUpdates(this)
-                continuation.resume(locationResult.lastLocation)
+                    val cancellationTokenSource = CancellationTokenSource()
+                    fusedLocationClient.getCurrentLocation(priority, cancellationTokenSource.token)
+                        .addOnSuccessListener { freshLocation ->
+                            if (freshLocation != null) {
+                                continuation.resume(freshLocation)
+                            } else {
+                                // Step 4: Fallback to requestLocationUpdates (1-time update)
+                                val locationRequest = LocationRequest.Builder(priority, 0L)
+                                    .setMinUpdateIntervalMillis(0L)
+                                    .setWaitForAccurateLocation(false)
+                                    .setMaxUpdates(1)
+                                    .setDurationMillis(2500L)
+                                    .build()
+
+                                val locationCallback = object : LocationCallback() {
+                                    override fun onLocationResult(result: LocationResult) {
+                                        fusedLocationClient.removeLocationUpdates(this)
+                                        continuation.resume(result.lastLocation)
+                                    }
+                                }
+
+                                fusedLocationClient.requestLocationUpdates(
+                                    locationRequest,
+                                    locationCallback,
+                                    Looper.getMainLooper()
+                                )
+
+                                continuation.invokeOnCancellation {
+                                    fusedLocationClient.removeLocationUpdates(locationCallback)
+                                }
+                            }
+                        }
+                        .addOnFailureListener {
+                            continuation.resume(null)
+                        }
+                }
             }
-        }
+            .addOnFailureListener {
+                continuation.resume(null)
+            }
+}
 
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            Looper.getMainLooper()
-        )
-
-        continuation.invokeOnCancellation {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-        }
-    }
 suspend fun getTemperatureFromWeatherApiManualSuspend(lat: Double, lon: Double, apiKey: String): String? {
     val TAG = "WeatherAPI_Manual"
     val client = OkHttpClient()
@@ -232,18 +267,18 @@ fun executeMobile(cardNumber: Int, context: Context){
     var status = false
 
 
-        runBlocking {
-            username = datastore.getUsername()
-            password = datastore.getPassword()
-            vehicleKey = datastore.getVehicleKey()
-            deviceID = datastore.getDeviceID()
-            pin = datastore.getPin()
-            airCirc = datastore.getCardAirCirc(cardNumber)
-            climateZoneAirMode = datastore.getCardVentSetting(cardNumber)
-            temperature = datastore.getCardTemp(cardNumber).toString()
-            heatedRearWindow = datastore.getCardRearDefrost(cardNumber).toString()
-            engineRuntime = datastore.getCardRuntime(cardNumber).toString()
-        }
+    runBlocking {
+        username = datastore.getUsername()
+        password = datastore.getPassword()
+        vehicleKey = datastore.getVehicleKey()
+        deviceID = datastore.getDeviceID()
+        pin = datastore.getPin()
+        airCirc = datastore.getCardAirCirc(cardNumber)
+        climateZoneAirMode = datastore.getCardVentSetting(cardNumber)
+        temperature = datastore.getCardTemp(cardNumber).toString()
+        heatedRearWindow = datastore.getCardRearDefrost(cardNumber).toString()
+        engineRuntime = datastore.getCardRuntime(cardNumber).toString()
+    }
 
     body.add("username", username)
         .add("password", password)
@@ -272,7 +307,7 @@ fun executeMobile(cardNumber: Int, context: Context){
 
 }
 
-fun execute(context: Context, action: String, datastore: DataStoreRepo): String {
+fun execute(context: Context, action: String, datastore: DataStoreRepo, locationOverride: Boolean = false): String {
     //Handles car requests.
     val cookieTracker = CookieTracker()
     val client = OkHttpClient().newBuilder().cookieJar(cookieTracker).build()
@@ -294,7 +329,7 @@ fun execute(context: Context, action: String, datastore: DataStoreRepo): String 
     var useLocation = false
     runBlocking {useLocation = datastore.getLocationSetting() }
 
-    if(!useLocation) {
+    if(!useLocation || locationOverride) {
         runBlocking {
             username = datastore.getUsername()
             password = datastore.getPassword()
@@ -337,7 +372,7 @@ fun execute(context: Context, action: String, datastore: DataStoreRepo): String 
     val form = body.build()
     //build form and request
     val request = Request.Builder().url(url = url).post(form).build()
-    Log.d("request", request.toString())
+    Log.w("request", request.toString())
 
     client.newCall(request).enqueue(object : Callback{
         override fun onFailure(call: Call, e: IOException) {
@@ -403,7 +438,7 @@ fun startEngine(
     lateinit var loginStatus: loginStatus
     lateinit var response: Response
 
-
+    Log.d("startEngine", "startEngine called")
     val dataPayload = HashMap<String, String>()
     val urlString = "https://www.mysubaru.com/service/g2/engineStart/execute.json"
     dataPayload["now"] = (System.currentTimeMillis()).toString()
