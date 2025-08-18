@@ -2,6 +2,13 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.protobuf") version "0.9.4"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" // this version matches your Kotlin version
+
+}
+
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    stabilityConfigurationFile = rootProject.layout.projectDirectory.file("stability_config.conf")
 }
 
 android {
@@ -51,7 +58,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation(platform("androidx.compose:compose-bom:2023.10.01"))
     implementation("androidx.datastore:datastore-preferences:1.0.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.1.0")
     implementation("androidx.media3:media3-decoder:1.2.1")
     implementation("com.google.accompanist:accompanist-flowlayout:0.34.0") // or latest
     implementation("com.google.accompanist:accompanist-pager:0.34.0")
@@ -81,6 +88,11 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     wearApp(project(":wear"))
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 protobuf {
