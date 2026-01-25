@@ -21,6 +21,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Cookie
@@ -158,6 +159,29 @@ suspend fun getLocationSuspending(context: Context): Location? =
             }
 }
 
+suspend fun getLastKnownLocationAny(context: Context): Location? =
+    suspendCancellableCoroutine { continuation ->
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            continuation.resume(null)
+            return@suspendCancellableCoroutine
+        }
+
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                continuation.resume(location)
+            }
+            .addOnFailureListener {
+                continuation.resume(null)
+            }
+            .addOnCanceledListener {
+                continuation.resume(null)
+            }
+    }
+
 suspend fun getTemperatureFromWeatherApiManualSuspend(lat: Double, lon: Double, apiKey: String): String? {
     val TAG = "WeatherAPI_Manual"
     val client = OkHttpClient()
@@ -198,25 +222,20 @@ suspend fun getTemperatureFromWeatherApiManualSuspend(lat: Double, lon: Double, 
                         Log.d(TAG, "Successful response. JSON Data: $jsonData")
                         val jsonObject = JSONObject(jsonData)
                         val main = jsonObject.getJSONObject("main")
-                        val temperature = main.getDouble("temp")
-                        Log.d(TAG, "Parsed temperature: $temperature")
-                        continuation.resume("$temperature")
+                        val temp = main.getString("temp")
+                        continuation.resume(temp)
                     } else {
-                        Log.w(TAG, "API call not successful. Code: ${response.code}, Message: ${response.message}")
-                        response.body?.string()?.let { errorBody -> // Consume error body
-                            Log.w(TAG, "Error body: $errorBody")
-                        }
+                        Log.w(TAG, "Response unsuccessful. Code: ${response.code}")
                         continuation.resume(null)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Exception parsing response or JSON", e)
-                    continuation.resumeWithException(e)
+                    Log.e(TAG, "JSON parsing error", e)
+                    continuation.resume(null)
                 } finally {
-                    response.close() // Ensure the response body is closed
+                    response.close()
                 }
             }
         })
-
         continuation.invokeOnCancellation {
             call.cancel()
             Log.d(TAG, "Coroutine cancelled, OkHttp call cancelled.")
@@ -228,7 +247,16 @@ suspend fun getWeather(context: Context, datastore: DataStoreRepo): Int {
     var lat: Double = 45.4869 //Default to beaverton cause why not?
     var lon: Double = -122.8040
     var api_key = runBlocking { datastore.getOpenWeatherAPIKey() }
-    val location = getLocationSuspending(context)
+    
+    // Try to get fresh location first (with timeout)
+    var location = withTimeoutOrNull(5000L) { getLocationSuspending(context) }
+    
+    // If fresh location fetch fails or times out, fallback to any last known location
+    if (location == null) {
+        Log.w("getWeather", "Fresh location timed out or failed. Falling back to last known location.")
+        location = withTimeoutOrNull(1000L) { getLastKnownLocationAny(context) }
+    }
+
     if (location != null) {
         lat = location.latitude
         lon = location.longitude
