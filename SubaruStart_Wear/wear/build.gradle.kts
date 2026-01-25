@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" // this version matches your Kotlin version
+    id("org.jetbrains.kotlin.plugin.compose") // this version matches your Kotlin version
 
 }
 composeCompiler {
@@ -74,5 +74,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    wearApp(project(":wear"))
 }
